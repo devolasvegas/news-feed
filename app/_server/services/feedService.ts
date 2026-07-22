@@ -95,8 +95,13 @@ function encodeCursor(payload: CursorPayload): string {
 
 function decodeCursor(cursor: string): CursorPayload {
   try {
-    const payload = JSON.parse(Buffer.from(cursor, "base64url").toString("utf-8"));
-    if (typeof payload?.id === "string" && typeof payload?.createdAt === "number") {
+    const payload = JSON.parse(
+      Buffer.from(cursor, "base64url").toString("utf-8"),
+    );
+    if (
+      typeof payload?.id === "string" &&
+      typeof payload?.createdAt === "number"
+    ) {
       return payload;
     }
   } catch {
@@ -120,7 +125,10 @@ function relationshipToViewer(
   viewerId: string,
   authorId: string,
 ): FeedAuthorDTO["relationshipToViewer"] {
-  const edgeFlag: Record<RelationshipEdgeType, keyof FeedAuthorDTO["relationshipToViewer"]> = {
+  const edgeFlag: Record<
+    RelationshipEdgeType,
+    keyof FeedAuthorDTO["relationshipToViewer"]
+  > = {
     friend: "isFriend",
     following: "isFollowing",
     muted: "isMuted",
@@ -128,7 +136,8 @@ function relationshipToViewer(
   };
 
   const edges = relationshipEdges.filter(
-    (edge: DbRelationshipEdge) => edge.viewerId === viewerId && edge.targetUserId === authorId,
+    (edge: DbRelationshipEdge) =>
+      edge.viewerId === viewerId && edge.targetUserId === authorId,
   );
 
   const relationship: FeedAuthorDTO["relationshipToViewer"] = {};
@@ -138,11 +147,20 @@ function relationshipToViewer(
   return relationship;
 }
 
-function toPostDTO(post: (typeof posts)[number], viewerId: string): FeedPostDTO {
-  const totalReactions = Object.values(post.reactionCounts).reduce((sum, n) => sum + n, 0);
+function toPostDTO(
+  post: (typeof posts)[number],
+  viewerId: string,
+): FeedPostDTO {
+  const totalReactions = Object.values(post.reactionCounts).reduce(
+    (sum, n) => sum + n,
+    0,
+  );
   const viewerReaction =
-    reactions.find((r) => r.postId === post.id && r.userId === viewerId)?.type ?? null;
-  const viewerHasShared = shares.some((s) => s.postId === post.id && s.userId === viewerId);
+    reactions.find((r) => r.postId === post.id && r.userId === viewerId)
+      ?.type ?? null;
+  const viewerHasShared = shares.some(
+    (s) => s.postId === post.id && s.userId === viewerId,
+  );
 
   return {
     id: post.id,
@@ -183,7 +201,10 @@ export async function getFeed({
   if (cursor) {
     const { id, createdAt } = decodeCursor(cursor);
     const anchorIndex = rankedPosts.findIndex((p) => p.id === id);
-    if (anchorIndex === -1 || rankedPosts[anchorIndex].createdAt !== createdAt) {
+    if (
+      anchorIndex === -1 ||
+      rankedPosts[anchorIndex].createdAt !== createdAt
+    ) {
       throw new InvalidCursorError(cursor);
     }
 
