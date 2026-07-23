@@ -54,11 +54,25 @@ export type MediaDTO = DbMedia;
 
 // --- Lookups -------------------------------------------------------------
 
-export const usersById = new Map<string, DbUser>(users.map((user) => [user.id, user]));
+export const usersById = new Map<string, DbUser>(
+  users.map((user) => [user.id, user]),
+);
 
-export function getMediaByIds(ids: Iterable<string>): MediaDTO[] {
+export async function getMediaByIds(
+  ids: Iterable<string>,
+): Promise<MediaDTO[]> {
   const idSet = new Set(ids);
   return media.filter((m) => idSet.has(m.id));
+}
+
+export async function getAuthorOrThrow(authorId: string): Promise<DbUser> {
+  const author = usersById.get(authorId);
+
+  if (!author) {
+    throw new Error(`Post references unknown author id: ${authorId}`);
+  }
+
+  return author;
 }
 
 // --- Assembly --------------------------------------------------------------
@@ -67,7 +81,10 @@ export function relationshipToViewer(
   viewerId: string,
   targetUserId: string,
 ): AuthorDTO["relationshipToViewer"] {
-  const edgeFlag: Record<RelationshipEdgeType, keyof AuthorDTO["relationshipToViewer"]> = {
+  const edgeFlag: Record<
+    RelationshipEdgeType,
+    keyof AuthorDTO["relationshipToViewer"]
+  > = {
     friend: "isFriend",
     following: "isFollowing",
     muted: "isMuted",
@@ -75,7 +92,8 @@ export function relationshipToViewer(
   };
 
   const edges = relationshipEdges.filter(
-    (edge: DbRelationshipEdge) => edge.viewerId === viewerId && edge.targetUserId === targetUserId,
+    (edge: DbRelationshipEdge) =>
+      edge.viewerId === viewerId && edge.targetUserId === targetUserId,
   );
 
   const relationship: AuthorDTO["relationshipToViewer"] = {};
@@ -97,10 +115,16 @@ export function toAuthorDTO(author: DbUser, viewerId: string): AuthorDTO {
 }
 
 export function toPostDTO(post: DbPost, viewerId: string): PostDTO {
-  const totalReactions = Object.values(post.reactionCounts).reduce((sum, n) => sum + n, 0);
+  const totalReactions = Object.values(post.reactionCounts).reduce(
+    (sum, n) => sum + n,
+    0,
+  );
   const viewerReaction =
-    reactions.find((r) => r.postId === post.id && r.userId === viewerId)?.type ?? null;
-  const viewerHasShared = shares.some((s) => s.postId === post.id && s.userId === viewerId);
+    reactions.find((r) => r.postId === post.id && r.userId === viewerId)
+      ?.type ?? null;
+  const viewerHasShared = shares.some(
+    (s) => s.postId === post.id && s.userId === viewerId,
+  );
 
   return {
     id: post.id,

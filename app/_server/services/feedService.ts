@@ -1,9 +1,9 @@
 import { posts } from "../db/posts";
 import {
+  getAuthorOrThrow,
   getMediaByIds,
   toAuthorDTO,
   toPostDTO,
-  usersById,
   type AuthorDTO,
   type MediaDTO,
   type PostDTO,
@@ -57,8 +57,13 @@ function encodeCursor(payload: CursorPayload): string {
 
 function decodeCursor(cursor: string): CursorPayload {
   try {
-    const payload = JSON.parse(Buffer.from(cursor, "base64url").toString("utf-8"));
-    if (typeof payload?.id === "string" && typeof payload?.createdAt === "number") {
+    const payload = JSON.parse(
+      Buffer.from(cursor, "base64url").toString("utf-8"),
+    );
+    if (
+      typeof payload?.id === "string" &&
+      typeof payload?.createdAt === "number"
+    ) {
       return payload;
     }
   } catch {
@@ -97,7 +102,10 @@ export async function getFeed({
   if (cursor) {
     const { id, createdAt } = decodeCursor(cursor);
     const anchorIndex = rankedPosts.findIndex((p) => p.id === id);
-    if (anchorIndex === -1 || rankedPosts[anchorIndex].createdAt !== createdAt) {
+    if (
+      anchorIndex === -1 ||
+      rankedPosts[anchorIndex].createdAt !== createdAt
+    ) {
       throw new InvalidCursorError(cursor);
     }
 
@@ -128,15 +136,14 @@ export async function getFeed({
 
   const authorIds = new Set(pageSlice.map((p) => p.authorId));
 
-  const authors: AuthorDTO[] = [...authorIds].map((authorId) => {
-    const author = usersById.get(authorId);
-    if (!author) {
-      throw new Error(`Post references unknown author id: ${authorId}`);
-    }
-    return toAuthorDTO(author, viewerId);
-  });
+  const authors: AuthorDTO[] = await Promise.all(
+    [...authorIds].map(async (authorId) => {
+      const author = await getAuthorOrThrow(authorId);
+      return toAuthorDTO(author, viewerId);
+    }),
+  );
 
-  const pageMedia = getMediaByIds(pageSlice.flatMap((p) => p.mediaIds));
+  const pageMedia = await getMediaByIds(pageSlice.flatMap((p) => p.mediaIds));
 
   return {
     posts: pageSlice.map((post) => toPostDTO(post, viewerId)),
