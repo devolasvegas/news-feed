@@ -1,56 +1,18 @@
-import { media, posts, reactions, shares } from "../db/posts";
-import { relationshipEdges, users } from "../db/users";
-import type {
-  DbMedia,
-  DbRelationshipEdge,
-  DbUser,
-  PostBody,
-  ReactionType,
-  RelationshipEdgeType,
-} from "../types";
-
-// --- Response shapes -------------------------------------------------------
-//
-// These are deliberately NOT `_store/types.ts` shapes. This is the "raw API
-// response" the article describes — normalized-ish (posts / authors / media
-// as separate lists, referencing each other by id) so the payload doesn't
-// repeat a full author object on every post. The data-access layer's job is
-// to fold this into the store's per-entity maps.
-
-export type FeedPostDTO = {
-  id: string;
-  authorId: string;
-  body: PostBody;
-  mediaIds: string[];
-  reactionCounts: Record<ReactionType, number>;
-  totalReactions: number;
-  commentCount: number;
-  shareCount: number;
-  viewerReaction: ReactionType | null;
-  viewerHasShared: boolean;
-  createdAt: number;
-};
-
-export type FeedAuthorDTO = {
-  id: string;
-  name: string;
-  handle: string;
-  profilePhotoUrl: string;
-  isVerified: boolean;
-  relationshipToViewer: {
-    isFriend?: boolean;
-    isFollowing?: boolean;
-    isMuted?: boolean;
-    isBlocked?: boolean;
-  };
-};
-
-export type FeedMediaDTO = DbMedia;
+import { posts } from "../db/posts";
+import {
+  getMediaByIds,
+  toAuthorDTO,
+  toPostDTO,
+  usersById,
+  type AuthorDTO,
+  type MediaDTO,
+  type PostDTO,
+} from "../dto";
 
 export type FeedPage = {
-  posts: FeedPostDTO[];
-  authors: FeedAuthorDTO[];
-  media: FeedMediaDTO[];
+  posts: PostDTO[];
+  authors: AuthorDTO[];
+  media: MediaDTO[];
   pageInfo: {
     olderCursor: string | null;
     newerCursor: string | null;
@@ -95,13 +57,8 @@ function encodeCursor(payload: CursorPayload): string {
 
 function decodeCursor(cursor: string): CursorPayload {
   try {
-    const payload = JSON.parse(
-      Buffer.from(cursor, "base64url").toString("utf-8"),
-    );
-    if (
-      typeof payload?.id === "string" &&
-      typeof payload?.createdAt === "number"
-    ) {
+    const payload = JSON.parse(Buffer.from(cursor, "base64url").toString("utf-8"));
+    if (typeof payload?.id === "string" && typeof payload?.createdAt === "number") {
       return payload;
     }
   } catch {
@@ -110,10 +67,6 @@ function decodeCursor(cursor: string): CursorPayload {
   throw new InvalidCursorError(cursor);
 }
 
-// --- Lookups -------------------------------------------------------------
-
-const usersById = new Map<string, DbUser>(users.map((user) => [user.id, user]));
-
 // Rank = reverse-chronological, id as a tiebreaker for a deterministic order
 // when two posts share a createdAt (as ours do, being seeded on the hour).
 const rankedPosts = [...posts].sort((a, b) => {
@@ -121,71 +74,14 @@ const rankedPosts = [...posts].sort((a, b) => {
   return b.id.localeCompare(a.id);
 });
 
-function relationshipToViewer(
-  viewerId: string,
-  authorId: string,
-): FeedAuthorDTO["relationshipToViewer"] {
-  const edgeFlag: Record<
-    RelationshipEdgeType,
-    keyof FeedAuthorDTO["relationshipToViewer"]
-  > = {
-    friend: "isFriend",
-    following: "isFollowing",
-    muted: "isMuted",
-    blocked: "isBlocked",
-  };
-
-  const edges = relationshipEdges.filter(
-    (edge: DbRelationshipEdge) =>
-      edge.viewerId === viewerId && edge.targetUserId === authorId,
-  );
-
-  const relationship: FeedAuthorDTO["relationshipToViewer"] = {};
-  for (const edge of edges) {
-    relationship[edgeFlag[edge.type]] = true;
-  }
-  return relationship;
-}
-
-function toPostDTO(
-  post: (typeof posts)[number],
-  viewerId: string,
-): FeedPostDTO {
-  const totalReactions = Object.values(post.reactionCounts).reduce(
-    (sum, n) => sum + n,
-    0,
-  );
-  const viewerReaction =
-    reactions.find((r) => r.postId === post.id && r.userId === viewerId)
-      ?.type ?? null;
-  const viewerHasShared = shares.some(
-    (s) => s.postId === post.id && s.userId === viewerId,
-  );
-
-  return {
-    id: post.id,
-    authorId: post.authorId,
-    body: post.body,
-    mediaIds: post.mediaIds,
-    reactionCounts: post.reactionCounts,
-    totalReactions,
-    commentCount: post.commentCount,
-    shareCount: post.shareCount,
-    viewerReaction,
-    viewerHasShared,
-    createdAt: post.createdAt,
-  };
-}
-
 /**
  * Fetch a page of the feed for `viewerId`.
  *
  * Mirrors what a real service would do against Postgres + Redis: pick a
  * slice of ranked posts around an opaque cursor, then assemble the
- * viewer-relative fields (reaction/share/relationship) via what would be
- * joins there and are `.filter()`/`.find()` here. Kept `async` so call
- * sites don't need to change when the in-memory arrays are swapped for real
- * queries.
+ * viewer-relative fields via `../dto`'s helpers (what would be joins there
+ * are `.filter()`/`.find()` here). Kept `async` so call sites don't need to
+ * change when the in-memory arrays are swapped for real queries.
  */
 export async function getFeed({
   viewerId,
@@ -201,10 +97,7 @@ export async function getFeed({
   if (cursor) {
     const { id, createdAt } = decodeCursor(cursor);
     const anchorIndex = rankedPosts.findIndex((p) => p.id === id);
-    if (
-      anchorIndex === -1 ||
-      rankedPosts[anchorIndex].createdAt !== createdAt
-    ) {
+    if (anchorIndex === -1 || rankedPosts[anchorIndex].createdAt !== createdAt) {
       throw new InvalidCursorError(cursor);
     }
 
@@ -234,24 +127,16 @@ export async function getFeed({
       : null;
 
   const authorIds = new Set(pageSlice.map((p) => p.authorId));
-  const mediaIds = new Set(pageSlice.flatMap((p) => p.mediaIds));
 
-  const authors: FeedAuthorDTO[] = [...authorIds].map((authorId) => {
+  const authors: AuthorDTO[] = [...authorIds].map((authorId) => {
     const author = usersById.get(authorId);
     if (!author) {
       throw new Error(`Post references unknown author id: ${authorId}`);
     }
-    return {
-      id: author.id,
-      name: author.name,
-      handle: author.handle,
-      profilePhotoUrl: author.profilePhotoUrl,
-      isVerified: author.isVerified,
-      relationshipToViewer: relationshipToViewer(viewerId, author.id),
-    };
+    return toAuthorDTO(author, viewerId);
   });
 
-  const pageMedia: FeedMediaDTO[] = media.filter((m) => mediaIds.has(m.id));
+  const pageMedia = getMediaByIds(pageSlice.flatMap((p) => p.mediaIds));
 
   return {
     posts: pageSlice.map((post) => toPostDTO(post, viewerId)),
