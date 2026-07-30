@@ -72,13 +72,6 @@ function decodeCursor(cursor: string): CursorPayload {
   throw new InvalidCursorError(cursor);
 }
 
-// Rank = reverse-chronological, id as a tiebreaker for a deterministic order
-// when two posts share a createdAt (as ours do, being seeded on the hour).
-const rankedPosts = [...posts].sort((a, b) => {
-  if (b.createdAt !== a.createdAt) return b.createdAt - a.createdAt;
-  return b.id.localeCompare(a.id);
-});
-
 /**
  * Fetch a page of the feed for `viewerId`.
  *
@@ -94,6 +87,12 @@ export async function getFeed({
   direction = "older",
   limit = DEFAULT_LIMIT,
 }: GetFeedParams): Promise<FeedPage> {
+  // Rank = reverse-chronological, id as a tiebreaker for a deterministic order
+  // when two posts share a createdAt (as ours do, being seeded on the hour).
+  const rankedPosts = [...posts].sort((a, b) => {
+    if (b.createdAt !== a.createdAt) return b.createdAt - a.createdAt;
+    return b.id.localeCompare(a.id);
+  });
   const pageSize = Math.min(Math.max(1, limit), MAX_LIMIT);
 
   let startIndex = 0;
