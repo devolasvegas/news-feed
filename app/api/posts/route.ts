@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createPost } from "../../_server/services/postService";
 import { InvalidUserError } from "../../_server/dto";
+import { isValidEntity } from "@/app/_server/validation";
 
 // route for new post creation using the POST method
 export async function POST(request: NextRequest): Promise<NextResponse> {
@@ -41,8 +42,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  // Ensure body.entities is an array
-  if (!Array.isArray(body.entities)) {
+  // Validate body.entities
+  if (
+    !body.entities.every((e: unknown) => isValidEntity(e, body.text.length))
+  ) {
     return NextResponse.json(
       { error: "Post body.entities is invalid" },
       { status: 400 },
