@@ -44,6 +44,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
   // Validate body.entities
   if (
+    !Array.isArray(body.entities) ||
     !body.entities.every((e: unknown) => isValidEntity(e, body.text.length))
   ) {
     return NextResponse.json(

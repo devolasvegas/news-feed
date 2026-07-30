@@ -1,3 +1,5 @@
+export {};
+
 type PostBody = {
   text: string;
   entities: Array<{

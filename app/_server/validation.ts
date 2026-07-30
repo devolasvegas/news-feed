@@ -1,3 +1,5 @@
+import { PostBody } from "./types";
+
 export function isValidEntity(
   entity: unknown,
   textLength: number,
