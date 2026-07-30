@@ -1,6 +1,6 @@
 import { media, reactions, shares } from "./db/posts";
 import { relationshipEdges, users } from "./db/users";
-import type {
+import {
   DbMedia,
   DbPost,
   DbRelationshipEdge,
@@ -52,6 +52,13 @@ export type AuthorDTO = {
 
 export type MediaDTO = DbMedia;
 
+export class InvalidUserError extends Error {
+  constructor(userId: string) {
+    super(`Invalid user ID: ${userId}`);
+    this.name = "InvalidUserError";
+  }
+}
+
 // --- Lookups -------------------------------------------------------------
 
 export const usersById = new Map<string, DbUser>(
@@ -69,7 +76,7 @@ export async function getAuthorOrThrow(authorId: string): Promise<DbUser> {
   const author = usersById.get(authorId);
 
   if (!author) {
-    throw new Error(`Post references unknown author id: ${authorId}`);
+    throw new InvalidUserError(authorId);
   }
 
   return author;
