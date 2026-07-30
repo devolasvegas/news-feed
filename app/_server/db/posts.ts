@@ -9,7 +9,7 @@ import { VIEWER_ID } from "./users";
 
 // Fills in the ReactionType keys a post doesn't mention with 0, so seed
 // entries below only have to spell out the counts that matter.
-function reactionCounts(
+export function reactionCounts(
   partial: Partial<Record<ReactionType, number>>,
 ): Record<ReactionType, number> {
   return {
@@ -232,7 +232,12 @@ export const posts: DbPost[] = [
     body: {
       text: "Slides from today's talk are up: https://example.com/caching-slides",
       entities: [
-        { type: "link", start: 34, end: 62, url: "https://example.com/caching-slides" },
+        {
+          type: "link",
+          start: 34,
+          end: 62,
+          url: "https://example.com/caching-slides",
+        },
       ],
     },
     mediaIds: [],
