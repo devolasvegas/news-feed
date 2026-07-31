@@ -1,6 +1,7 @@
 import { posts, reactions } from "../db/posts";
 import { type DbReaction, type ReactionType } from "../types";
 import { toPostDTO, type PostDTO } from "../dto";
+import { getAuthorOrThrow } from "../dto";
 
 // Set/change viewer's reaction
 export async function upsertReaction(
@@ -8,6 +9,9 @@ export async function upsertReaction(
   viewerId: string,
   type: ReactionType,
 ): Promise<PostDTO | null> {
+  // Validate user
+  await getAuthorOrThrow(viewerId);
+
   const post = posts.find((p) => p.id === postId);
 
   if (!post) {
@@ -51,6 +55,9 @@ export async function deleteReaction(
   postId: string,
   viewerId: string,
 ): Promise<PostDTO | null> {
+  // Validate user
+  await getAuthorOrThrow(viewerId);
+
   const post = posts.find((p) => p.id === postId);
 
   if (!post) {
