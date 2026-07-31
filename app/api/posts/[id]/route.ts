@@ -21,7 +21,7 @@ export async function GET(
   const { id: postId } = await params;
 
   if (!postId) {
-    return NextResponse.json({ error: "postId is required" }, { status: 400 });
+    return NextResponse.json({ error: "post ID is required" }, { status: 400 });
   }
 
   let post;
