@@ -37,7 +37,7 @@ export async function PUT(
     );
   }
 
-  // Validate reaction type passed to route
+  // Validate reaction types
   const VALID_REACTIONS: ReactionType[] = [
     "like",
     "love",
@@ -47,6 +47,7 @@ export async function PUT(
     "angry",
   ];
 
+  // Validate reaction type passed in the request
   if (!VALID_REACTIONS.includes(reactionType as ReactionType)) {
     return NextResponse.json(
       { error: "Invalid reaction type" },
@@ -93,5 +94,20 @@ export async function DELETE(
     return NextResponse.json({ error: "post ID is required" }, { status: 400 });
   }
 
-  return NextResponse.json({ message: "reaction route" });
+  let post;
+
+  try {
+    post = await deleteReaction(postId, viewerId);
+  } catch (err) {
+    if (err instanceof InvalidUserError) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
+    throw err;
+  }
+
+  if (!post) {
+    return NextResponse.json({ error: "Post not found" }, { status: 404 });
+  }
+
+  return NextResponse.json(post);
 }
