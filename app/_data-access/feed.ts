@@ -69,10 +69,21 @@ export class FetchFeedError extends Error {
 export async function fetchFeed(
   params: FetchFeedParams,
 ): Promise<FeedPageResponse> {
-  let response;
+  const searchParams = new URLSearchParams({ viewerId: params.viewerId });
+  if (params.cursor !== undefined) searchParams.set("cursor", params.cursor);
+  if (params.direction !== undefined)
+    searchParams.set("direction", params.direction);
+  if (params.limit !== undefined)
+    searchParams.set("limit", String(params.limit));
+
+  const response = await fetch(`/api/feed?${searchParams.toString()}`, {
+    method: "GET",
+  });
+  const body = await response.json();
 
   if (!response.ok) {
-    const body = await response.json();
     throw new FetchFeedError(response.status, body.error);
   }
+
+  return body;
 }
