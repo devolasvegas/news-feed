@@ -1,10 +1,4 @@
-import type { PostBody, Post, Author, Media } from "./types";
-
-export type PostDetail = {
-  post: Post;
-  author: Author;
-  media: Media[];
-};
+import type { PostBody, PostDetail } from "./types";
 
 export type CreatePostParams = {
   viewerId: string;

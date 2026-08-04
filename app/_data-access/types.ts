@@ -11,6 +11,12 @@ export type PostBody = {
 
 export type ReactionType = "like" | "love" | "haha" | "wow" | "sad" | "angry";
 
+export type PostDetail = {
+  post: Post;
+  author: Author;
+  media: Media[];
+};
+
 export type Post = {
   id: string;
   authorId: string;
