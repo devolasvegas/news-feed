@@ -1,4 +1,4 @@
-import type { PostBody, ReactionType } from "./types";
+import type { Post, Author, Media } from "./types";
 
 export type FetchFeedParams = {
   viewerId: string;
@@ -7,47 +7,10 @@ export type FetchFeedParams = {
   limit?: number;
 };
 
-export type FeedPost = {
-  id: string;
-  authorId: string;
-  body: PostBody;
-  mediaIds: string[];
-  reactionCounts: Record<ReactionType, number>;
-  totalReactions: number;
-  commentCount: number;
-  shareCount: number;
-  viewerReaction: ReactionType | null;
-  viewerHasShared: boolean;
-  createdAt: number;
-};
-
-export type FeedAuthor = {
-  id: string;
-  name: string;
-  handle: string;
-  profilePhotoUrl: string;
-  isVerified: boolean;
-  relationshipToViewer: {
-    isFriend?: boolean;
-    isFollowing?: boolean;
-    isMuted?: boolean;
-    isBlocked?: boolean;
-  };
-};
-
-export type FeedMedia = {
-  id: string;
-  src: string;
-  previewSrc?: string;
-  alt: string;
-  width: number;
-  height: number;
-};
-
 export type FeedPageResponse = {
-  posts: FeedPost[];
-  authors: FeedAuthor[];
-  media: FeedMedia[];
+  posts: Post[];
+  authors: Author[];
+  media: Media[];
   pageInfo: {
     olderCursor: string | null;
     newerCursor: string | null;
