@@ -1,6 +1,4 @@
-export {};
-
-type PostBody = {
+export type PostBody = {
   text: string;
   entities: Array<{
     type: "mention" | "hashtag" | "link";
@@ -11,16 +9,16 @@ type PostBody = {
   }>;
 };
 
-type ReactionType = "like" | "love" | "haha" | "wow" | "sad" | "angry";
+export type ReactionType = "like" | "love" | "haha" | "wow" | "sad" | "angry";
 
-type EngagementSummary = {
+export type EngagementSummary = {
   reactions: Record<ReactionType, number>;
   totalReactions: number;
   commentCount: number;
   shareCount: number;
 };
 
-type Post = {
+export type Post = {
   id: string;
   authorId: string;
   body: PostBody;
@@ -31,14 +29,14 @@ type Post = {
   createdAt: number;
 };
 
-type RelationshipToViewer = {
+export type RelationshipToViewer = {
   isFriend?: boolean;
   isFollowing?: boolean;
   isMuted?: boolean;
   isBlocked?: boolean;
 };
 
-type User = {
+export type User = {
   id: string;
   name: string;
   handle: string;
@@ -47,7 +45,7 @@ type User = {
   relationshipToViewer: RelationshipToViewer;
 };
 
-type Feed = {
+export type Feed = {
   id: string;
   postIds: string[];
   olderCursor: string | null;
@@ -57,7 +55,7 @@ type Feed = {
   lastFetchedAt: number | null;
 };
 
-type Media = {
+export type Media = {
   id: string;
   src: string;
   previewSrc?: string;
@@ -66,14 +64,14 @@ type Media = {
   height: number;
 };
 
-type ComposerDraft = {
+export type ComposerDraft = {
   body: PostBody;
   mediaIds: string[];
   uploadState: "idle" | "uploading" | "failed";
   submitState: "idle" | "submitting" | "submitted" | "failed";
 };
 
-type Store = {
+export type Store = {
   feedsById: Record<string, Feed>;
   postsById: Record<string, Post>;
   usersById: Record<string, User>;
