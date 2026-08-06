@@ -86,7 +86,13 @@ export function normalizePostDetail(detail: PostDetail): {
   author: User;
   media: Record<string, Media>;
 } {
-  const storePostDetail = {};
+  const storePostDetail = {
+    post: toStorePost(detail.post),
+    author: toStoreUser(detail.author),
+    media: Object.fromEntries(
+      detail.media.map((item) => [item.id, toStoreMedia(item)]),
+    ),
+  };
 
   return storePostDetail;
 }
