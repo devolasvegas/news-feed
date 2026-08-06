@@ -1,3 +1,8 @@
+import { ReactionType } from "../_data-access/types";
+import { FetchFeedParams } from "../_data-access/feed";
+import { CreatePostParams } from "../_data-access/post";
+import { ComposerDraft } from "./types";
+
 // State = the existing Store type. Actions live alongside it in the same create<Store & StoreActions>():
 
 type StoreActions = {
