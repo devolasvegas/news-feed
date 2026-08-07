@@ -2,7 +2,11 @@ import { create } from "zustand";
 
 import { type ReactionType } from "../_data-access/types";
 import { type FetchFeedParams, fetchFeed } from "../_data-access/feed";
-import { ReactionError, upsertReaction } from "../_data-access/reaction";
+import {
+  deleteReaction,
+  ReactionError,
+  upsertReaction,
+} from "../_data-access/reaction";
 import {
   type CreatePostParams,
   PostError,
@@ -197,7 +201,62 @@ export const useFeedStore = create<Store & StoreActions>()((set) => ({
       if (!(err instanceof ReactionError)) throw err;
     }
   },
-  clearReaction: async () => {},
+  clearReaction: async (postId, viewerId) => {
+    let post: Post;
+    let prevReactionType: ReactionType | null = null;
+
+    // Optimistic update to post
+    set((state) => {
+      post = state.postsById[postId];
+      prevReactionType = post.viewerReaction;
+      const prevReactions = post.engagementSummary.reactions;
+
+      if (!prevReactionType) {
+        return {};
+      }
+
+      const reactions = {
+        ...prevReactions,
+        [prevReactionType]:
+          post.engagementSummary.reactions[prevReactionType] - 1,
+      };
+
+      const totalReactions = post.engagementSummary.totalReactions - 1;
+
+      return {
+        postsById: {
+          ...state.postsById,
+          [postId]: {
+            // Rebuild the post, spreading in our new values.
+            ...post,
+            viewerReaction: null,
+            engagementSummary: {
+              ...post.engagementSummary,
+              reactions,
+              totalReactions,
+            },
+          },
+        },
+      };
+    });
+
+    if (!prevReactionType) return;
+
+    try {
+      const response = await deleteReaction(postId, viewerId);
+      post = toStorePost(response);
+
+      set((state) => ({
+        postsById: { ...state.postsById, [postId]: post },
+      }));
+    } catch (err) {
+      // If `post` isn't updated in the `try`, the old post data are put back in and optimistic updates are rolled back.
+      set((state) => ({
+        postsById: { ...state.postsById, [postId]: post },
+      }));
+      if (!(err instanceof ReactionError)) throw err;
+    }
+  },
   updateComposerDraft: () => {},
   resetComposerDraft: () => {},
 }));
