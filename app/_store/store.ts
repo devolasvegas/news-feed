@@ -52,6 +52,7 @@ export const useFeedStore = create<Store & StoreActions>()((set) => ({
   composerDraft: {
     ...defaultComposerDraft,
   },
+  reactionRequestIdByPostId: {},
   loadFeed: async (feedId, params) => {
     const response = await fetchFeed(params); // _data-access
     const { posts, authors, media, postIds, pageInfo } =
@@ -144,15 +145,19 @@ export const useFeedStore = create<Store & StoreActions>()((set) => ({
   setReaction: async (postId, viewerId, type) => {
     let post: Post;
     let prevReactionType: ReactionType | null = null;
+    let requestId: number | undefined;
 
     // Optimistically update state with new reaction type
     set((state) => {
       post = state.postsById[postId];
       prevReactionType = post.viewerReaction;
-      const prevReactions = post.engagementSummary.reactions;
 
       if (prevReactionType === type) return {}; // no-op if new selected reaction matches previous reaction
 
+      // Bump request ID used for mitigating lost updates
+      requestId = (state.reactionRequestIdByPostId[postId] ?? 0) + 1;
+
+      const prevReactions = post.engagementSummary.reactions;
       // Make a copy of existing reactions and increment new chosen reaction
       const reactions = {
         ...prevReactions,
@@ -183,6 +188,10 @@ export const useFeedStore = create<Store & StoreActions>()((set) => ({
             },
           },
         },
+        reactionRequestIdByPostId: {
+          ...state.reactionRequestIdByPostId,
+          [postId]: requestId,
+        },
       };
     });
 
@@ -192,31 +201,42 @@ export const useFeedStore = create<Store & StoreActions>()((set) => ({
       const response = await upsertReaction(postId, viewerId, type);
       post = toStorePost(response);
 
-      set((state) => ({
-        postsById: { ...state.postsById, [postId]: post },
-      }));
+      set((state) => {
+        if (state.reactionRequestIdByPostId[postId] !== requestId) return {};
+
+        return {
+          postsById: { ...state.postsById, [postId]: post },
+        };
+      });
     } catch (err) {
       // If `post` isn't updated in the `try`, the old post data are put back in and optimistic updates are rolled back.
-      set((state) => ({
-        postsById: { ...state.postsById, [postId]: post },
-      }));
+      set((state) => {
+        if (state.reactionRequestIdByPostId[postId] !== requestId) return {};
+        return {
+          postsById: { ...state.postsById, [postId]: post },
+        };
+      });
       if (!(err instanceof ReactionError)) throw err;
     }
   },
   clearReaction: async (postId, viewerId) => {
     let post: Post;
     let prevReactionType: ReactionType | null = null;
+    let requestId: number | undefined;
 
     // Optimistic update to post
     set((state) => {
       post = state.postsById[postId];
       prevReactionType = post.viewerReaction;
-      const prevReactions = post.engagementSummary.reactions;
 
       if (!prevReactionType) {
         return {};
       }
 
+      // Bump request ID used for mitigating lost updates
+      requestId = (state.reactionRequestIdByPostId[postId] ?? 0) + 1;
+
+      const prevReactions = post.engagementSummary.reactions;
       const reactions = {
         ...prevReactions,
         [prevReactionType]:
@@ -239,6 +259,10 @@ export const useFeedStore = create<Store & StoreActions>()((set) => ({
             },
           },
         },
+        reactionRequestIdByPostId: {
+          ...state.reactionRequestIdByPostId,
+          [postId]: requestId,
+        },
       };
     });
 
@@ -248,14 +272,22 @@ export const useFeedStore = create<Store & StoreActions>()((set) => ({
       const response = await deleteReaction(postId, viewerId);
       post = toStorePost(response);
 
-      set((state) => ({
-        postsById: { ...state.postsById, [postId]: post },
-      }));
+      set((state) => {
+        if (state.reactionRequestIdByPostId[postId] !== requestId) return {};
+
+        return {
+          postsById: { ...state.postsById, [postId]: post },
+        };
+      });
     } catch (err) {
       // If `post` isn't updated in the `try`, the old post data are put back in and optimistic updates are rolled back.
-      set((state) => ({
-        postsById: { ...state.postsById, [postId]: post },
-      }));
+      set((state) => {
+        if (state.reactionRequestIdByPostId[postId] !== requestId) return {};
+
+        return {
+          postsById: { ...state.postsById, [postId]: post },
+        };
+      });
       if (!(err instanceof ReactionError)) throw err;
     }
   },

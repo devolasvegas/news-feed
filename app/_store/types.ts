@@ -77,4 +77,5 @@ export type Store = {
   usersById: Record<string, User>;
   mediaById: Record<string, Media>;
   composerDraft: ComposerDraft;
+  reactionRequestIdByPostId: Record<string, number>;
 };
