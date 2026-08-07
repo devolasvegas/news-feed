@@ -20,8 +20,6 @@ import {
   toStorePost,
 } from "./normalize";
 
-// State = the existing Store type. Actions live alongside it in the same create<Store & StoreActions>():
-
 type StoreActions = {
   loadFeed(feedId: string, params: FetchFeedParams): Promise<void>;
   loadPost(postId: string, viewerId: string): Promise<void>;
@@ -36,19 +34,23 @@ type StoreActions = {
   resetComposerDraft(): void;
 };
 
+const defaultComposerDraft: ComposerDraft = {
+  body: {
+    text: "",
+    entities: [],
+  },
+  mediaIds: [],
+  uploadState: "idle",
+  submitState: "idle",
+};
+
 export const useFeedStore = create<Store & StoreActions>()((set) => ({
   feedsById: {},
   postsById: {},
   usersById: {},
   mediaById: {},
   composerDraft: {
-    body: {
-      text: "",
-      entities: [],
-    },
-    mediaIds: [],
-    uploadState: "idle",
-    submitState: "idle",
+    ...defaultComposerDraft,
   },
   loadFeed: async (feedId, params) => {
     const response = await fetchFeed(params); // _data-access
@@ -257,9 +259,19 @@ export const useFeedStore = create<Store & StoreActions>()((set) => ({
       if (!(err instanceof ReactionError)) throw err;
     }
   },
-  updateComposerDraft: () => {},
-  resetComposerDraft: () => {},
+  updateComposerDraft: (patch) => {
+    set((state) => ({
+      composerDraft: {
+        ...state.composerDraft,
+        ...patch,
+      },
+    }));
+  },
+  resetComposerDraft: () => {
+    set(() => ({
+      composerDraft: {
+        ...defaultComposerDraft,
+      },
+    }));
+  },
 }));
-
-// Notes on the trickier ones:
-// - setReaction/clearReaction — recommend optimistic updates: write the new viewerReaction/engagementSummary to postsById immediately, then reconcile with (or roll back to the prior snapshot on failure from) the real ReactionError. Flag if you'd rather wait for the network response before touching state.
